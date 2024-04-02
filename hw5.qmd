@@ -1,6 +1,6 @@
 ---
 title: "Homework 5"
-author: "[Insert your name here]{style='background-color: yellow;'}"
+author: "[Surya Maddali]{style='background-color: yellow;'}"
 toc: true
 title-block-banner: true
 title-block-style: default
@@ -77,10 +77,19 @@ Read the data file as a tibble in R. Preprocess the data such that:
 2. all column names to lower case for consistency
 3. Any observations with missing values are dropped
 
-```R
+```{R}
 path <- "data/housing.csv"
 
-df <- ... # Insert your code here
+df <- read_csv(path)
+```
+```{R}
+
+df$ocean_proximity <- as.factor(df$ocean_proximity)
+
+names(df) <- tolower(names(df))
+
+df <- df %>% drop_na()
+
 ```
 
 ---
@@ -89,8 +98,10 @@ df <- ... # Insert your code here
 
 Visualize the correlation matrix of all numeric columns in `df` using `corrplot()`
 
-```R
-df %>% ... # Insert your code here
+```{R}
+df_numeric <- df %>% select(-ocean_proximity)
+
+corrplot(cor(df_numeric))
 ```
 
 ---
@@ -99,7 +110,7 @@ df %>% ... # Insert your code here
 
 Split the data `df` into `df_train` and `df_split` using `test_ind` in the code below:
 
-```R
+```{R}
 set.seed(42)
 test_ind <- sample(
   1:nrow(df), 
@@ -107,8 +118,8 @@ test_ind <- sample(
   replace=FALSE
 )
 
-df_train <- ... # Insert your code here
-df_test  <- ... # Insert your code here
+df_train <- df[-test_ind, ]
+df_test  <- df[test_ind, ]
 ```
 
 ---
@@ -128,9 +139,15 @@ Fit a linear regression model to predict the `median_house_value` :
 
 Interpret the coefficients and summarize your results. 
 
-```R
-lm_fit <- ... # Insert your code here
-... # Insert your code here
+```{R}
+
+df_train <- df_train %>% select(-households)
+
+df_test <- df_test %>% select(-households)
+
+lm_fit <- lm(median_house_value~., data = df_train)
+
+#summary(lm_fit)
 ```
 
 ---
@@ -139,12 +156,14 @@ lm_fit <- ... # Insert your code here
 
 Complete the `rmse` function for computing the Root Mean-Squared Error between the true `y` and the predicted `yhat`, and use it to compute the RMSE for the regression model on `df_test`
 
-```R
+```{R}
 rmse <- function(y, yhat) {
   sqrt(mean((y - yhat)^2))
 }
 
-lm_predictions <- ... # Insert your code here
+lm_predictions <- predict(lm_fit, newdata = df_test)
+rmse(df_test$median_house_value, lm_predictions)
+
 ```
 
 
@@ -152,7 +171,7 @@ lm_predictions <- ... # Insert your code here
 
 Fit a decision tree model to predict the `median_house_value` using the same predictors as in 1.4. Use the `rpart()` function.
 
-```R
+```{R}
 rpart_fit <- ... # Insert your code here
 rpart_predictions <- ... # Insert your code here
 ```
