@@ -172,22 +172,22 @@ rmse(df_test$median_house_value, lm_predictions)
 Fit a decision tree model to predict the `median_house_value` using the same predictors as in 1.4. Use the `rpart()` function.
 
 ```{R}
-rpart_fit <- ... # Insert your code here
-rpart_predictions <- ... # Insert your code here
+rpart_fit <- rpart(median_house_value~., data = df_train)
+rpart_predictions <- predict(rpart_fit, newdata=df_test)
 ```
 
 
 Visualize the decision tree using the `rpart.plot()` function. 
 
-```R
-... # Insert your code here
+```{R}
+rpart.plot(rpart_fit)
 ```
 
 
 Report the root mean squared error on the test set.
 
-```R
-rpart_predictions <- ... # Insert your code here
+```{R}
+rmse(df_test$median_house_value, rpart_predictions)
 ```
 
 ---
@@ -196,10 +196,17 @@ rpart_predictions <- ... # Insert your code here
 
 Fit a support vector machine model to predict the `median_house_value` using the same predictors as in 1.4. Use the `svm()` function and use any kernel of your choice. Report the root mean squared error on the test set.
 
-```R
-svm_fit <- ... # Insert your code here
-svm_predictions <- ... # Insert your code here
+```{R}
+svm_fit <- svm(median_house_value~., df_train, kernel='radial')
+svm_predictions <- predict(svm_fit, newdata=df_test)
 ```
+
+RMSE
+```{R}
+rmse(df_test$median_house_value, svm_predictions)
+
+```
+
 
 ---
 
@@ -207,13 +214,18 @@ svm_predictions <- ... # Insert your code here
 
 Initialize a neural network model architecture:
 
-```R
+```{R}
 NNet <- nn_module(
     initialize = function(p, q1, q2, q3){
-      ... # Insert your code here
+      self$fc1 <- nn_linear(p,q1)
+      self$fc2 <- nn_linear(q1,q2)
+      self$fc3 <- nn_linear(q2,q3)
     },
     forward = function(x){
-      ... # Insert your code here
+      x %>%
+        self$fc1 %>%
+        self$fc2 %>%
+        self$fc3
     }
 )
 ```
@@ -221,7 +233,7 @@ NNet <- nn_module(
 
 Fit a neural network model to predict the `median_house_value` using the same predictors as in 1.4. Use the `model.matrix` function to create the covariate matrix and `luz` package for fitting the network with $32, 16, 8$ nodes in each of the three hidden layers. 
 
-```R
+```{R}
 nnet_fit <- NNet %>% 
   setup(
     ... # Insert your code here
@@ -235,7 +247,7 @@ nnet_fit <- NNet %>%
   fit(
     ... # Insert your code here
     dataloader_options = ... # Insert your code here
-    verbose = FALSE # Change to TRUE while tuning. But, set to FALSE before submitting
+    verbose = TRUE # Change to TRUE while tuning. But, set to FALSE before submitting
 
   )
 ```
@@ -292,9 +304,22 @@ Read the data file as a tibble in R. Preprocess the data such that:
 2. all column names to lower case for consistency
 3. Any observations with missing values are dropped
 
-```R
-df <- ... # Insert your code here
+```{R}
+path2 <- "data/spambase.csv"
+
+df2 <- read_csv(path2)
 ```
+Preprocessing
+```{R}
+
+df2 <- df2 %>% as_tibble() %>% drop_na()
+
+df2$spam <- as.factor(df2$spam)
+
+names(df2) <- tolower(names(df2))
+
+```
+
 
 ---
 
@@ -302,30 +327,31 @@ df <- ... # Insert your code here
 
 Split the data `df` into `df_train` and `df_split` using `test_ind` in the code below:
 
-```R
+```{R}
 set.seed(42)
-test_ind <- sample(
+test_ind2 <- sample(
   1:nrow(df), 
   floor( nrow(df)/10 ),
   replace=FALSE
 )
 
-df_train <- ... # Insert your code here
-df_test  <- ... # Insert your code here
+df2_train <- df2[-test_ind2, ] 
+df2_test  <- df2[test_ind2, ]
 ```
 
 Complete the `overview` function which returns a data frame with the following columns: `accuracy`, `error`, `false positive rate`, `true positive rate`, between the true `true_class` and the predicted `pred_class` for any classification model.
 
-```R
+```{R}
 overview <- function(pred_class, true_class) {
-  accuracy <- ... # Insert your code here
-  error <- ... # Insert your code here
-  true_positives <- ... # Insert your code here
-  true_negatives <- ... # Insert your code here
-  false_positives <- ... # Insert your code here
-  false_negatives <- ... # Insert your code here
-  true_positive_rate <- ... # Insert your code here
-  false_positive_rate <- ...  # Insert your code here
+  y <- table(true_class, pred_class)
+  accuracy <- ((y[1] + y[4])/(y[1] + y[2] + y[3] + y[4])) * 100
+  error <- (y[2] + y[3]) / (y[1] + y[2] + y[3] + y[4])
+  true_positives <- y[4]
+  true_negatives <- y[1]
+  false_positives <- y[3]
+  false_negatives <- y[2]
+  true_positive_rate <- y[4]/(y[4] + y[3]) 
+  false_positive_rate <- y[3] / (y[2] + y[1])
   return(
     data.frame(
       accuracy = accuracy,
@@ -344,33 +370,43 @@ overview <- function(pred_class, true_class) {
 
 Fit a logistic regression model to predict the `spam` variable using the remaining predictors. Report the prediction accuracy on the test set.
 
-```R
-glm_fit <- ... # Insert your code here
-glm_classes <- ... # Insert your code here
-```
+```{R}
+glm_fit <- glm(spam~., data=df2_train, family = 'binomial')
+glm_classes <- predict(glm_fit, newdata = df2_test)
 
+glm_predictions <- ifelse(glm_classes > 0.5, 1, 0)
+
+overview(glm_predictions, df2_test$spam)
+
+```
+The prediction accuracy is roughly 90.62%.
 ---
 
 ###### 2.4 (5 points)
 
 Fit a decision tree model to predict the `spam` variable using the remaining predictors. Use the `rpart()` function and set the `method` argument to `"class"`. 
 
-```R
-rpart_classes <- ... # Insert your code here
+```{R}
+rpart_classes <- rpart(spam ~ ., data = df2_train, method = 'class')
+
+rpart_pred <- predict(rpart_classes, newdata = df2_test, type = 'class')
 ```
 
 Visualize the decision tree using the `rpart.plot()` function. 
 
-```R
-... # Insert your code here
+```{R}
+rpart.plot(rpart_classes)
 ```
 
 Report the prediction accuracy on the test set.
 
-```R
-rpart_classes <- ... # Insert your code here
-```
+```{R}
+# rpart_classes <- ... # Insert your code here
 
+overview(rpart_pred, df2_test$spam)
+
+```
+The prediction accuracy is roughly 90.4%.
 ---
 
 ###### 2.5 (5 points)
