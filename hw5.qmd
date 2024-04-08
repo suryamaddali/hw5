@@ -563,8 +563,8 @@ plot(
 Define a grid of $100$ points from $-10$ to $10$ in both $x_1$ and $x_2$ using the `expand.grid()`. Save it as a tibble called `df_test`. 
 
 ```{R}
-grid <- sample(df, 100)
-df_test <- expand.grid()
+grid <- df[sample(nrow(df), 100),]
+df_test <- expand.grid(grid)
 ```
 
 ---
@@ -574,8 +574,8 @@ df_test <- expand.grid()
 Fit a classification tree model to predict the `y` variable using the `x1` and `x2` predictors, and plot the decision boundary. 
 
 ```{R}
-rpart_fit <- ... # Insert your code here
-rpart_classes <- ... # Insert your code here
+rpart_fit <- rpart(y ~ ., data = df)
+rpart_classes <- predict(rpart_fit, newdata = df_test)
 ```
 
 Plot the decision boundary using the following function:
@@ -605,9 +605,9 @@ plot_decision_boundary(rpart_classes)
 
 Fit a support vector machine model to predict the `y` variable using the `x1` and `x2` predictors. Use the `svm()` function and use any kernel of your choice. Remember to set the `type` argument to `"C-classification"` **if you haven't** converted `y` to be of type `factor`.
 
-```R
-svm_fit <- ... # Insert your code here
-svm_classes <- ... # Insert your code here
+```{R}
+svm_fit <- svm(y~., data = df, kernel = 'radial', type = 'C-classification')
+svm_classes <- predict(svm_fit, newdata = df_test)
 plot_decision_boundary(svm_classes)
 ```
 
@@ -632,12 +632,12 @@ You can use any optimizer of your choice, but you **will need to tune the learni
 
 Fit a neural network with **1 hidden layer** to predict the `y` variable using the `x1` and `x2` predictors.
 
-```R
+```{R}
 NN1 <- nn_module(
   initialize = function(p, q1, o){
-    self$hidden1 <- ... # Insert your code here
-    self$output <- ... # Insert your code here
-    self$activation <- ... # Insert your code here
+    self$hidden1 <- nn_linear(p, q1)
+    self$output <- nn_linear(q1, o)
+    self$activation <- nn_relu()
   },
   forward = function(x){
     x %>% 
@@ -649,36 +649,45 @@ NN1 <- nn_module(
 
 fit_1 <- NN1 %>% 
   setup(
-    ... # Insert your code here
+    nn_cross_entropy_loss(), optimizer = optim_adam
   ) %>%
   set_hparams(
-    ... # Insert your code here
+    p=2, q1 = 10, o = 3
   ) %>%
-  set_opt_params(
-    ... # Insert your code here
+  set_opt_hparams(
+    lr = 0.02
   ) %>%
   fit(
     data = list(
       df %>% select(x1, x2) %>% as.matrix,
       df$y %>% as.integer
     ),
-    ... # Insert your code here
-    dataloader_options = ... # Insert your code here
-    verbose = FALSE
+    epochs = 50,
+    dataloader_options = list(batch_size = 64),
+    verbose = TRUE
   )
 ```
 
 In order to generate the class predictions, you will need to use the `predict()` function as follows
 
-```R
+```{R}
 test_matrix <- df_test %>% select(x1, x2) %>% as.matrix
 
 fit_1_predictions <- predict(fit_1, test_matrix) %>% 
-  argmax(2) %>% 
+  torch_argmax(2) %>% 
   as.integer()
 ```
 
 Plot the results using the `plot_decision_boundary()` function.
+
+```{R}
+
+plot_decision_boundary(fit_1_predictions)
+
+```
+
+
+
 
 ---
 
@@ -686,25 +695,40 @@ Plot the results using the `plot_decision_boundary()` function.
 
 Fit a neural network with **0 hidden layers** to predict the `y` variable using the `x1` and `x2` predictors.
 
-```R
+```{R}
 NN0 <- nn_module(
   initialize = function(p, o){
-    ... # Insert your code here
+    self$output = nn_linear(p, o)
   },
   forward = function(x){
     x %>% 
-    ... # Insert your code here
+    self$output()
   }
 )
 
 fit_0 <- NN0 %>% 
-  setup(...) %>%
-  set_hparams(...) %>%
-  set_opt_params(...) %>%
-  fit(...)
+  setup(nn_cross_entropy_loss(), optimizer = optim_adam) %>%
+  set_hparams(p=2, o = 3) %>%
+  set_opt_hparams(lr = 0.02) %>%
+  fit(data = list(
+      df %>% select(x1, x2) %>% as.matrix,
+      df$y %>% as.integer),
+      epochs = 50,
+    dataloader_options = list(batch_size = 64),
+    verbose = TRUE)
 ```
 
 Plot the results using the `plot_decision_boundary()` function.
+
+```{R}
+
+fit_0_predictions <- predict(fit_0, test_matrix) %>% 
+  torch_argmax(2) %>% 
+  as.integer()
+
+
+plot_decision_boundary(fit_0_predictions)
+```
 
 ---
 
@@ -713,31 +737,62 @@ Plot the results using the `plot_decision_boundary()` function.
 
 Fit a neural network with **3 hidden layers** to predict the `y` variable using the `x1` and `x2` predictors.
 
-```R
-NN2 <- nn_module(
+```{R}
+NN3 <- nn_module(
   initialize = function(p, q1, q2, o){
-    ... # Insert your code here
+    self$hidden1 <- nn_linear(p, q1)
+    self$hidden2 <- nn_linear(q1, q2)
+    self$output <- nn_linear(q2, o)
+    self$activation <- nn_relu()
   },
   forward = function(x){
     x %>% 
-    ... # Insert your code here
+      self$hidden1() %>% 
+      self$activation() %>%
+      self$hidden2() %>%
+      self$activation() %>%
+      self$output()
   }
 )
 
 fit_2 <- NN3 %>% 
-  setup(...) %>%
-  set_hparams(...) %>%
-  set_opt_params(...) %>%
-  fit(...)
+  setup(nn_cross_entropy_loss(), optimizer = optim_adam) %>%
+  set_hparams(p = 2, q1 = 10, q2 = 10, o = 3) %>%
+  set_opt_hparams(lr = 0.02) %>%
+  fit(data = list(
+      df %>% select(x1, x2) %>% as.matrix,
+      df$y %>% as.integer
+    ),
+    epochs = 50,
+    dataloader_options = list(batch_size = 64),
+    verbose = TRUE)
 ```
 
 Plot the results using the `plot_decision_boundary()` function.
+
+```{R}
+
+fit_2_predictions <- predict(fit_2, test_matrix) %>% 
+  torch_argmax(2) %>% 
+  as.integer()
+
+
+plot_decision_boundary(fit_2_predictions)
+
+
+
+```
+
+
 
 ---
 
 ###### 3.7 (5 points)
 
 What are the differences between the models? How do the decision boundaries change as the number of hidden layers increases?
+
+
+The differences between the models is that as the number of hidden layers increases, the models become more and more accurate and representative of the training data.
 
 
 ---
