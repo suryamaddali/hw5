@@ -330,9 +330,7 @@ df2 <- read_csv(path2)
 Preprocessing
 ```{R}
 
-df2 <- df2 %>% as_tibble() %>% drop_na()
-
-df2$spam <- as.factor(df2$spam)
+df2 <- df2 %>% as_tibble() %>% drop_na() %>% mutate_if(\(x) is.character(x), as.factor)
 
 names(df2) <- tolower(names(df2))
 
@@ -348,8 +346,8 @@ Split the data `df` into `df_train` and `df_split` using `test_ind` in the code 
 ```{R}
 set.seed(42)
 test_ind2 <- sample(
-  1:nrow(df), 
-  floor( nrow(df)/10 ),
+  1:nrow(df2), 
+  floor( nrow(df2)/10 ),
   replace=FALSE
 )
 
@@ -419,7 +417,6 @@ rpart.plot(rpart_classes)
 Report the prediction accuracy on the test set.
 
 ```{R}
-# rpart_classes <- ... # Insert your code here
 
 overview(rpart_pred, df2_test$spam)
 
@@ -463,24 +460,75 @@ Note that the neural network in **Q 1.9** was a regression model. You will need 
 
 Use the `model.matrix` function to create the covariate matrix and `luz` package for fitting the network with $32, 16, 8$ nodes in each of the three hidden layers. 
 
-```R
-nnet_fit <- NNet %>% 
-  setup(
-    ... # Insert your code here
+```{R}
+
+NNet2 <- nn_module(
+    initialize = function(p, q1, q2, q3){
+      self$hidden1 <- nn_linear(p,q1)
+      self$hidden2 <- nn_linear(q1,q2)
+      self$hidden3 <- nn_linear(q2,q3)
+      self$output <- nn_linear(q3,1)
+      self$activation <- nn_relu()
+      self$sigmoid <- nn_sigmoid()
+    },
+    forward = function(x){
+      x %>%
+        self$hidden1() %>% self$activation() %>%
+        self$hidden2() %>% self$activation() %>%
+        self$hidden3() %>% self$activation() %>%
+        self$output() %>% self$sigmoid()
+    }
+)
+
+```
+
+```{R}
+
+M <- model.matrix(spam ~ 0 + ., data = df2_train)
+
+
+```
+
+
+
+
+
+```{R}
+nnet2_fit <- NNet2 %>% 
+  setup(loss = nn_bce_loss(),
+    optimizer = optim_adam,
+    metrics = list(luz_metric_accuracy())
   ) %>%
   set_hparams(
-    ... # Insert your code here
+    p = ncol(M), q1 = 32, q2 = 16, q3 = 8
   ) %>%
-  set_opt_params(
-    ... # Insert your code here
+  set_opt_hparams(
+    lr = 0.02
   ) %>%
   fit(
-    ... # Insert your code here
-    dataloader_options = ... # Insert your code here
-    verbose = FALSE # Change to TRUE while tuning. But, set to FALSE before submitting
+    data = list(model.matrix(spam~ 0 +., data = df2_train),
+                df2_train %>% select(spam) %>% as.matrix),
+    valid_data = list(model.matrix(spam ~ 0+., data=df2_test),
+                      df2_test %>% select(spam) %>% as.matrix),
+    dataloader_options = list(batch_size = 256, shuffle = TRUE),
+    epochs = 10,
+    verbose = TRUE # Change to TRUE while tuning. But, set to FALSE before submitting
 
   )
 ```
+```{R}
+
+nnet2_predictions <- predict(nnet2_fit, newdata = model.matrix(spam~0 + ., data = df2_test)) %>% as.array()
+
+nnet2_predictions <- ifelse(nnet2_predictions > 0.5, 1, 0)
+
+
+overview(nnet2_predictions, df2_test$spam)
+
+
+```
+
+
 
 ---
 
@@ -488,13 +536,20 @@ nnet_fit <- NNet %>%
 
 Summarize your results in a table comparing the accuracy metrics for the different models. 
 
-```R
-... # Insert your code here
+```{R}
+
+
+summary_table <- 
+  rbind(overview(glm_predictions, df2_test$spam), overview(rpart_pred, df2_test$spam), overview(svm_classes, df2_test$spam), overview(nnet2_predictions, df2_test$spam)) 
+
+summary_table
+
+
 ```
 
 If you were to choose a model to classify spam emails, which model would you choose? Think about the context of the problem and the cost of false positives and false negatives.
 
-
+If I were to choose a model to classify spam emails, I would choose the logistic regression mode.  While it misses the highest accuracy amount by a small margin, the fact that it has the highest true positive rate and the lowest false positive rate proves that the model generally attributes the correct values to be positive and identifies values that should not be positive as positive at the lowest rate.
 
 <br><br><br><br>
 <br><br><br><br>
