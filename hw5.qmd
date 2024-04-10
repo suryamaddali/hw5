@@ -8,8 +8,8 @@ execute:
   freeze: true
   cache: true
 format:
-  html: # comment this line to get pdf
-  # pdf: 
+  # html: # comment this line to get pdf
+  pdf: 
     fig-width: 7
     fig-height: 7
 ---
@@ -259,7 +259,7 @@ nnet_fit <- NNet %>%
                 as.matrix(df_train[,8])),
     valid_data = list(model.matrix(median_house_value~., data=df_test),
                       as.matrix(df_test[,8])),
-    epochs = 10, verbose = TRUE, # Change to TRUE while tuning. But, set to FALSE before submitting
+    epochs = 10, verbose = FALSE, # Change to TRUE while tuning. But, set to FALSE before submitting
   )
 ```
 
@@ -489,10 +489,6 @@ M <- model.matrix(spam ~ 0 + ., data = df2_train)
 
 ```
 
-
-
-
-
 ```{R}
 nnet2_fit <- NNet2 %>% 
   setup(loss = nn_bce_loss(),
@@ -512,7 +508,7 @@ nnet2_fit <- NNet2 %>%
                       df2_test %>% select(spam) %>% as.matrix),
     dataloader_options = list(batch_size = 256, shuffle = TRUE),
     epochs = 10,
-    verbose = TRUE # Change to TRUE while tuning. But, set to FALSE before submitting
+    verbose = FALSE # Change to TRUE while tuning. But, set to FALSE before submitting
 
   )
 ```
@@ -719,7 +715,7 @@ fit_1 <- NN1 %>%
     ),
     epochs = 50,
     dataloader_options = list(batch_size = 64),
-    verbose = TRUE
+    verbose = FALSE
   )
 ```
 
@@ -770,7 +766,7 @@ fit_0 <- NN0 %>%
       df$y %>% as.integer),
       epochs = 50,
     dataloader_options = list(batch_size = 64),
-    verbose = TRUE)
+    verbose = FALSE)
 ```
 
 Plot the results using the `plot_decision_boundary()` function.
@@ -820,7 +816,7 @@ fit_2 <- NN3 %>%
     ),
     epochs = 50,
     dataloader_options = list(batch_size = 64),
-    verbose = TRUE)
+    verbose = FALSE)
 ```
 
 Plot the results using the `plot_decision_boundary()` function.
